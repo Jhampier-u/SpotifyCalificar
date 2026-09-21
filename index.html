@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Album Story Maker</title>
+<title>Story Maker</title>
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,6 +24,17 @@ body { background: var(--bg); color: var(--text); font-family: var(--font-m); he
 header { padding: 14px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
 .logo { font-family: var(--font-d); font-size: 24px; letter-spacing: 4px; color: var(--accent); }
 .logo-sub { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+
+/* Selector Álbum | Anime */
+.app-switch { display: flex; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin-left: 24px; }
+.switch-btn {
+  font-family: var(--font-m); font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); background: transparent; border: none;
+  padding: 7px 16px; cursor: pointer; transition: all .15s;
+}
+.switch-btn:hover { color: var(--text); }
+.switch-btn.active { background: var(--accent); color: #000; }
+
 .header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 .theme-pill { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-right: 2px; }
 .vsep { width: 1px; height: 20px; background: var(--border); margin: 0 8px; }
@@ -64,18 +75,32 @@ header { padding: 14px 28px; border-bottom: 1px solid var(--border); display: fl
 .editor { width: 340px; min-width: 340px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
 .editor::-webkit-scrollbar { width: 4px; }
 .editor::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Campos exclusivos de cada modo.
+   Solo aplica dentro del editor: la visibilidad de la plantilla la controla el JS,
+   porque ahí los display se asignan inline y un !important los pisaría. */
+.editor[data-app="album"] .only-anime,
+.editor[data-app="anime"] .only-album { display: none !important; }
+
 .section-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 5px; }
-input[type="text"], input[type="url"] {
+input[type="text"], input[type="url"], select {
   background: var(--surface2); border: 1px solid var(--border); color: var(--text);
   font-family: var(--font-m); font-size: 12px; padding: 9px 12px; border-radius: 3px;
   outline: none; transition: border-color .2s; width: 100%;
 }
-input:focus { border-color: var(--accent); }
-.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+select { cursor: pointer; appearance: none; padding-right: 26px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+select option { background: var(--surface2); color: var(--text); }
+input:focus, select:focus { border-color: var(--accent); }
 
-/* Cover */
+/* Rejilla de fichas: se reacomoda sola según los campos visibles en cada modo */
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Portada / Póster */
 .cover-drop { aspect-ratio: 1; border: 1.5px dashed var(--border); border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: border-color .2s, background .2s; position: relative; overflow: hidden; background: var(--surface2); min-height: 140px; }
 .cover-drop:hover { border-color: var(--accent); }
 .cover-drop.dragover { border-color: var(--accent); background: rgba(226,184,74,.05); }
@@ -92,7 +117,14 @@ input:focus { border-color: var(--accent); }
 .custom-rating-row input { width: 72px; text-align: center; }
 .custom-rating-row span { font-size: 11px; color: var(--muted); }
 
-/* Tracks input */
+/* Sub-notas */
+.sub-row { display: grid; grid-template-columns: 1fr 56px; gap: 8px; align-items: center; }
+.sub-row + .sub-row { margin-top: 7px; }
+.sub-row span { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.sub-row input { text-align: center; padding: 6px 4px; }
+.hint-line { font-size: 9px; color: var(--muted); letter-spacing: 1px; margin-top: 2px; opacity: .7; }
+
+/* Lista de favoritos */
 .tracks-list { display: flex; flex-direction: column; gap: 6px; }
 .track-row { display: flex; gap: 6px; align-items: center; }
 .track-row input { flex: 1; }
@@ -138,85 +170,100 @@ input:focus { border-color: var(--accent); }
   position: absolute; top: 0; left: 0;
   transform-origin: top left; transform: scale(0.2963);
   overflow: hidden; font-family: var(--font-d);
+  --t-cover-h: 56%;
   --t-bg:#0a0a0a; --t-text:#f0ede8; --t-accent:#e2b84a;
   --t-muted:#4a4a4a; --t-grad:#0a0a0a;
   --t-tag-bg:rgba(226,184,74,.13); --t-tag-bd:rgba(226,184,74,.28);
-  --t-sep:rgba(255,255,255,.07);
+  --t-sep:rgba(255,255,255,.07); --t-badge-bg:rgba(0,0,0,.55);
 }
 
 /* ── GOLD ── */
-#story-template[data-color="gold"][data-mode="dark"]  { --t-bg:#0a0a0a; --t-text:#f0ede8; --t-accent:#e2b84a; --t-muted:#4a4a4a; --t-grad:#0a0a0a; --t-tag-bg:rgba(226,184,74,.13); --t-tag-bd:rgba(226,184,74,.28); --t-sep:rgba(255,255,255,.07); }
-#story-template[data-color="gold"][data-mode="light"] { --t-bg:#faf7f0; --t-text:#1a1a1a; --t-accent:#a87c10; --t-muted:#aaa;    --t-grad:#faf7f0; --t-tag-bg:rgba(168,124,16,.13); --t-tag-bd:rgba(168,124,16,.28); --t-sep:rgba(0,0,0,.09); }
+#story-template[data-color="gold"][data-mode="dark"]  { --t-bg:#0a0a0a; --t-text:#f0ede8; --t-accent:#e2b84a; --t-muted:#4a4a4a; --t-grad:#0a0a0a; --t-tag-bg:rgba(226,184,74,.13); --t-tag-bd:rgba(226,184,74,.28); --t-sep:rgba(255,255,255,.07); --t-badge-bg:rgba(0,0,0,.55); }
+#story-template[data-color="gold"][data-mode="light"] { --t-bg:#faf7f0; --t-text:#1a1a1a; --t-accent:#a87c10; --t-muted:#aaa;    --t-grad:#faf7f0; --t-tag-bg:rgba(168,124,16,.13); --t-tag-bd:rgba(168,124,16,.28); --t-sep:rgba(0,0,0,.09); --t-badge-bg:rgba(255,255,255,.72); }
 /* ── RED ── */
-#story-template[data-color="red"][data-mode="dark"]   { --t-bg:#0f0808; --t-text:#f5ece8; --t-accent:#e04040; --t-muted:#4a3030; --t-grad:#0f0808; --t-tag-bg:rgba(224,64,64,.13);  --t-tag-bd:rgba(224,64,64,.28);  --t-sep:rgba(255,255,255,.07); }
-#story-template[data-color="red"][data-mode="light"]  { --t-bg:#fdf4f2; --t-text:#1a0808; --t-accent:#c63528; --t-muted:#bbb;    --t-grad:#fdf4f2; --t-tag-bg:rgba(198,53,40,.13);  --t-tag-bd:rgba(198,53,40,.28);  --t-sep:rgba(0,0,0,.09); }
+#story-template[data-color="red"][data-mode="dark"]   { --t-bg:#0f0808; --t-text:#f5ece8; --t-accent:#e04040; --t-muted:#4a3030; --t-grad:#0f0808; --t-tag-bg:rgba(224,64,64,.13);  --t-tag-bd:rgba(224,64,64,.28);  --t-sep:rgba(255,255,255,.07); --t-badge-bg:rgba(0,0,0,.55); }
+#story-template[data-color="red"][data-mode="light"]  { --t-bg:#fdf4f2; --t-text:#1a0808; --t-accent:#c63528; --t-muted:#bbb;    --t-grad:#fdf4f2; --t-tag-bg:rgba(198,53,40,.13);  --t-tag-bd:rgba(198,53,40,.28);  --t-sep:rgba(0,0,0,.09); --t-badge-bg:rgba(255,255,255,.72); }
 /* ── BLUE ── */
-#story-template[data-color="blue"][data-mode="dark"]  { --t-bg:#060e1c; --t-text:#ddeeff; --t-accent:#4b9fff; --t-muted:#2a3a5a; --t-grad:#060e1c; --t-tag-bg:rgba(75,159,255,.13); --t-tag-bd:rgba(75,159,255,.28); --t-sep:rgba(255,255,255,.07); }
-#story-template[data-color="blue"][data-mode="light"] { --t-bg:#f0f6ff; --t-text:#080e1a; --t-accent:#1a6fd4; --t-muted:#aac;    --t-grad:#f0f6ff; --t-tag-bg:rgba(26,111,212,.13); --t-tag-bd:rgba(26,111,212,.28); --t-sep:rgba(0,0,0,.09); }
+#story-template[data-color="blue"][data-mode="dark"]  { --t-bg:#060e1c; --t-text:#ddeeff; --t-accent:#4b9fff; --t-muted:#2a3a5a; --t-grad:#060e1c; --t-tag-bg:rgba(75,159,255,.13); --t-tag-bd:rgba(75,159,255,.28); --t-sep:rgba(255,255,255,.07); --t-badge-bg:rgba(0,0,0,.55); }
+#story-template[data-color="blue"][data-mode="light"] { --t-bg:#f0f6ff; --t-text:#080e1a; --t-accent:#1a6fd4; --t-muted:#aac;    --t-grad:#f0f6ff; --t-tag-bg:rgba(26,111,212,.13); --t-tag-bd:rgba(26,111,212,.28); --t-sep:rgba(0,0,0,.09); --t-badge-bg:rgba(255,255,255,.72); }
 /* ── GREEN ── */
-#story-template[data-color="green"][data-mode="dark"]  { --t-bg:#060f09; --t-text:#e8f5ec; --t-accent:#5acc7e; --t-muted:#2e4a36; --t-grad:#060f09; --t-tag-bg:rgba(90,204,126,.13); --t-tag-bd:rgba(90,204,126,.28); --t-sep:rgba(255,255,255,.07); }
-#story-template[data-color="green"][data-mode="light"] { --t-bg:#f0faf3; --t-text:#060f09; --t-accent:#2a8a4a; --t-muted:#9ab;    --t-grad:#f0faf3; --t-tag-bg:rgba(42,138,74,.13);  --t-tag-bd:rgba(42,138,74,.28);  --t-sep:rgba(0,0,0,.09); }
+#story-template[data-color="green"][data-mode="dark"]  { --t-bg:#060f09; --t-text:#e8f5ec; --t-accent:#5acc7e; --t-muted:#2e4a36; --t-grad:#060f09; --t-tag-bg:rgba(90,204,126,.13); --t-tag-bd:rgba(90,204,126,.28); --t-sep:rgba(255,255,255,.07); --t-badge-bg:rgba(0,0,0,.55); }
+#story-template[data-color="green"][data-mode="light"] { --t-bg:#f0faf3; --t-text:#060f09; --t-accent:#2a8a4a; --t-muted:#9ab;    --t-grad:#f0faf3; --t-tag-bg:rgba(42,138,74,.13);  --t-tag-bd:rgba(42,138,74,.28);  --t-sep:rgba(0,0,0,.09); --t-badge-bg:rgba(255,255,255,.72); }
 /* ── PURPLE ── */
-#story-template[data-color="purple"][data-mode="dark"]  { --t-bg:#0c0814; --t-text:#ede8f5; --t-accent:#b06ef5; --t-muted:#3a2a5a; --t-grad:#0c0814; --t-tag-bg:rgba(176,110,245,.13); --t-tag-bd:rgba(176,110,245,.28); --t-sep:rgba(255,255,255,.07); }
-#story-template[data-color="purple"][data-mode="light"] { --t-bg:#faf5ff; --t-text:#1a0828; --t-accent:#7c3aed; --t-muted:#bba;    --t-grad:#faf5ff; --t-tag-bg:rgba(124,58,237,.13);  --t-tag-bd:rgba(124,58,237,.28);  --t-sep:rgba(0,0,0,.09); }
+#story-template[data-color="purple"][data-mode="dark"]  { --t-bg:#0c0814; --t-text:#ede8f5; --t-accent:#b06ef5; --t-muted:#3a2a5a; --t-grad:#0c0814; --t-tag-bg:rgba(176,110,245,.13); --t-tag-bd:rgba(176,110,245,.28); --t-sep:rgba(255,255,255,.07); --t-badge-bg:rgba(0,0,0,.55); }
+#story-template[data-color="purple"][data-mode="light"] { --t-bg:#faf5ff; --t-text:#1a0828; --t-accent:#7c3aed; --t-muted:#bba;    --t-grad:#faf5ff; --t-tag-bg:rgba(124,58,237,.13);  --t-tag-bd:rgba(124,58,237,.28);  --t-sep:rgba(0,0,0,.09); --t-badge-bg:rgba(255,255,255,.72); }
 
 /* ── TEMPLATE ELEMENTS ── */
 #t-bg { position: absolute; inset: 0; background: var(--t-bg); }
 
-#t-cover { position: absolute; top: 0; left: 0; right: 0; height: 56%; overflow: hidden; }
+#t-cover { position: absolute; top: 0; left: 0; right: 0; height: var(--t-cover-h); overflow: hidden; }
 #t-cover-img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: none; }
 #t-cover-placeholder { width: 100%; height: 100%; background: linear-gradient(145deg, #1c1c1c, #2a2a2a); display: flex; align-items: center; justify-content: center; }
 #t-cover-placeholder span { font-family: 'DM Mono', monospace; font-size: 40px; color: #333; letter-spacing: 4px; }
 .t-grad-bottom { position: absolute; bottom: 0; left: 0; right: 0; height: 45%; background: linear-gradient(to bottom, transparent, var(--t-bg)); pointer-events: none; }
 .t-grad-top    { position: absolute; top: 0; left: 0; right: 0; height: 30%; background: linear-gradient(to bottom, rgba(0,0,0,.45), transparent); pointer-events: none; }
 
-/* Content: empieza justo debajo, flex-start con gaps controlados */
-#t-content {
-  position: absolute; top: 56%; bottom: 0; left: 0; right: 0;
-  padding: 56px 80px 90px;
-  display: flex; flex-direction: column; gap: 28px;
+/* Estado (badge sobre el póster) — solo en modo anime */
+#t-status {
+  position: absolute; top: 58px; right: 80px; z-index: 4;
+  font-family: 'DM Mono', monospace; font-size: 25px; letter-spacing: 5px;
+  text-transform: uppercase; color: var(--t-accent);
+  background: var(--t-badge-bg); border: 1px solid var(--t-tag-bd);
+  padding: 11px 28px; border-radius: 40px; display: none; white-space: nowrap;
 }
 
-/* Bloque superior: etiquetas + título + meta */
+/* Content */
+#t-content {
+  position: absolute; top: var(--t-cover-h); bottom: 0; left: 0; right: 0;
+  padding: 50px 80px 80px;
+  display: flex; flex-direction: column; gap: 24px;
+}
+
+/* Bloque superior */
 .t-top-block { display: flex; flex-direction: column; gap: 0; flex-shrink: 0; }
 
-.t-eyebrow { font-family: 'DM Mono', monospace; font-size: 28px; letter-spacing: 12px; color: var(--t-accent); text-transform: uppercase; font-weight: 300; margin-bottom: 6px; }
-.t-artist  { font-family: 'DM Mono', monospace; font-size: 42px; color: var(--t-text); letter-spacing: 6px; text-transform: uppercase; opacity: .50; font-style: italic; font-weight: 300; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 15px; }
-.t-album   { font-family: 'Bebas Neue', sans-serif; font-size: 152px; line-height: .87; color: var(--t-text); letter-spacing: 2px; word-break: break-word; margin-bottom: 20px; }
+.t-eyebrow { font-family: 'DM Mono', monospace; font-size: 27px; letter-spacing: 11px; color: var(--t-accent); text-transform: uppercase; font-weight: 300; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-primary { font-family: 'DM Mono', monospace; font-size: 42px; color: var(--t-text); letter-spacing: 6px; text-transform: uppercase; opacity: .50; font-style: italic; font-weight: 300; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 14px; }
+.t-title   { font-family: 'Bebas Neue', sans-serif; font-size: 152px; line-height: .87; color: var(--t-text); letter-spacing: 2px; word-break: break-word; margin-bottom: 14px; }
+.t-original { font-family: 'DM Mono', monospace; font-size: 28px; letter-spacing: 4px; color: var(--t-text); opacity: .38; font-weight: 300; line-height: 1.2; margin-bottom: 16px; display: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.t-meta-row { display: flex; align-items: center; gap: 26px; font-family: 'DM Mono', monospace; font-size: 30px; color: var(--t-muted); letter-spacing: 5px; }
+.t-meta-row { display: flex; align-items: center; gap: 22px; font-family: 'DM Mono', monospace; font-size: 29px; color: var(--t-muted); letter-spacing: 4px; text-transform: uppercase; white-space: nowrap; overflow: hidden; }
 .t-meta-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--t-accent); opacity: .7; flex-shrink: 0; }
-#t-genre-tag { background: var(--t-tag-bg); border: 1px solid var(--t-tag-bd); padding: 8px 26px; border-radius: 40px; color: var(--t-accent); font-size: 28px; letter-spacing: 3px; }
+.t-genre-tag { background: var(--t-tag-bg); border: 1px solid var(--t-tag-bd); padding: 8px 24px; border-radius: 40px; color: var(--t-accent); font-size: 27px; letter-spacing: 3px; flex-shrink: 0; }
 
 .t-divider { height: 1px; background: linear-gradient(to right, var(--t-accent), transparent); opacity: .35; flex-shrink: 0; }
 
-/* Bloque inferior: ocupa TODO el espacio restante */
+/* Sub-notas — solo en modo anime */
+#t-substrip { display: none; gap: 20px; flex-shrink: 0; }
+.t-sub-item { flex: 1; min-width: 0; }
+.t-sub-label { font-family: 'DM Mono', monospace; font-size: 18px; letter-spacing: 3px; color: var(--t-muted); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
+.t-sub-val { font-family: 'Bebas Neue', sans-serif; font-size: 42px; line-height: .9; color: var(--t-text); margin-bottom: 8px; letter-spacing: 1px; }
+.t-sub-bar { height: 4px; background: var(--t-sep); border-radius: 2px; overflow: hidden; }
+.t-sub-bar i { display: block; height: 100%; background: var(--t-accent); border-radius: 2px; }
+
+/* Bloque inferior */
 .t-bottom { flex: 1; display: flex; align-items: flex-start; gap: 40px; min-height: 0; }
 
-/* Score: fijo a la izquierda */
 .t-score-block { flex-shrink: 0; width: 260px; display: flex; flex-direction: column; align-items: flex-start; }
 .t-score     { font-family: 'Bebas Neue', sans-serif; font-size: 300px; line-height: .82; color: var(--t-accent); letter-spacing: -8px; }
 .t-score-sub { font-family: 'DM Mono', monospace; font-size: 24px; letter-spacing: 6px; color: var(--t-muted); text-transform: uppercase; margin-top: 12px; }
 
-/* Tracks: ocupa el resto, MÁS a la derecha */
-.t-tracks-block { flex: 1; display: flex; flex-direction: column; height: 100%; padding-left: 20px; min-width: 0; }
-.t-tracks-header { font-family: 'DM Mono', monospace; font-size: 24px; letter-spacing: 8px; color: var(--t-accent); text-transform: uppercase; opacity: .55; margin-bottom: 22px; flex-shrink: 0; }
+.t-list-block { flex: 1; display: flex; flex-direction: column; height: 100%; padding-left: 20px; min-width: 0; }
+.t-list-header { font-family: 'DM Mono', monospace; font-size: 24px; letter-spacing: 8px; color: var(--t-accent); text-transform: uppercase; opacity: .55; margin-bottom: 20px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Lista de tracks: ocupa todo el alto disponible */
-#t-tracks-list { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+#t-fav-list { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
-/* Cada track se estira para llenar el espacio — al agregar más, cada uno se hace más chico */
-.t-track-item {
+.t-fav-item {
   flex: 1;
   display: flex; align-items: center; gap: 22px;
   border-bottom: 1px solid var(--t-sep);
   min-height: 0; overflow: hidden;
 }
-.t-track-item:first-of-type { border-top: 1px solid var(--t-sep); }
-.t-track-num  { font-family: 'Bebas Neue', sans-serif; font-size: 44px; color: var(--t-accent); opacity: .40; width: 52px; flex-shrink: 0; line-height: 1; }
-.t-track-name { font-family: 'DM Mono', monospace; font-size: 38px; color: var(--t-text); font-weight: 300; line-height: 1; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-fav-item:first-of-type { border-top: 1px solid var(--t-sep); }
+.t-fav-num  { font-family: 'Bebas Neue', sans-serif; font-size: 44px; color: var(--t-accent); opacity: .40; width: 52px; flex-shrink: 0; line-height: 1; }
+.t-fav-name { font-family: 'DM Mono', monospace; font-size: 38px; color: var(--t-text); font-weight: 300; line-height: 1; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.t-link { font-family: 'DM Mono', monospace; font-size: 26px; color: var(--t-muted); letter-spacing: 1px; word-break: break-all; opacity: .5; display: none; flex-shrink: 0; margin-top: 20px; }
+.t-link { font-family: 'DM Mono', monospace; font-size: 26px; color: var(--t-muted); letter-spacing: 1px; word-break: break-all; opacity: .5; display: none; flex-shrink: 0; margin-top: 18px; }
 
 #t-grain { position: absolute; inset: 0; pointer-events: none; opacity: .045; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 300px; }
 </style>
@@ -226,7 +273,11 @@ input:focus { border-color: var(--accent); }
 <header>
   <div>
     <div class="logo">STORY MAKER</div>
-    <div class="logo-sub">Generador de historias de álbumes</div>
+    <div class="logo-sub" id="app-sub">Generador de historias de álbumes</div>
+  </div>
+  <div class="app-switch">
+    <button class="switch-btn active" data-app="album" onclick="setApp('album')">🎵 Álbumes</button>
+    <button class="switch-btn"        data-app="anime" onclick="setApp('anime')">🌸 Animes</button>
   </div>
   <div class="header-right">
     <span class="theme-pill">COLOR</span>
@@ -256,9 +307,9 @@ input:focus { border-color: var(--accent); }
 </header>
 
 <div class="app">
-  <div class="editor">
+  <div class="editor" id="editor" data-app="album">
 
-    <div class="section-label">Portada</div>
+    <div class="section-label"><span id="lbl-cover">Portada</span></div>
     <div class="cover-drop" id="cover-drop"
          onclick="document.getElementById('file-in').click()"
          ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
@@ -267,23 +318,90 @@ input:focus { border-color: var(--accent); }
         <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
           <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1M12 12V4m0 0-3 3m3-3 3 3" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span>Arrastra o haz clic<br>para subir portada</span>
+        <span id="upload-text">Arrastra o haz clic<br>para subir portada</span>
       </div>
     </div>
     <input type="file" id="file-in" accept="image/*" style="display:none" onchange="handleFile(this)">
 
     <div class="section-label">Información</div>
     <div>
-      <label>Artista / Banda</label>
-      <input type="text" id="i-artist" placeholder="ej. Radiohead" oninput="sync()">
+      <label id="lbl-primary">Artista / Banda</label>
+      <input type="text" id="i-primary" placeholder="ej. Radiohead" oninput="sync()">
     </div>
     <div>
-      <label>Nombre del álbum</label>
-      <input type="text" id="i-album" placeholder="ej. OK Computer" oninput="sync()">
+      <label id="lbl-title">Nombre del álbum</label>
+      <input type="text" id="i-title" placeholder="ej. OK Computer" oninput="sync()">
     </div>
-    <div class="two-col">
+    <div class="only-anime">
+      <label>Título original (opcional)</label>
+      <input type="text" id="i-original" placeholder="ヴィンランド・サガ" oninput="sync()">
+    </div>
+    <div class="only-anime">
+      <label>Director (opcional)</label>
+      <input type="text" id="i-director" placeholder="ej. Shuhei Yabuta" oninput="sync()">
+    </div>
+
+    <div class="field-grid">
       <div><label>Año</label><input type="text" id="i-year" placeholder="1997" oninput="sync()"></div>
+      <div class="only-anime">
+        <label>Temporada</label>
+        <select id="i-season" onchange="sync()">
+          <option value="">—</option>
+          <option value="Invierno">Invierno</option>
+          <option value="Primavera">Primavera</option>
+          <option value="Verano">Verano</option>
+          <option value="Otoño">Otoño</option>
+        </select>
+      </div>
+      <div class="only-anime">
+        <label>Formato</label>
+        <select id="i-format" onchange="sync()">
+          <option value="TV">TV</option>
+          <option value="Película">Película</option>
+          <option value="OVA">OVA</option>
+          <option value="ONA">ONA</option>
+          <option value="Especial">Especial</option>
+          <option value="">—</option>
+        </select>
+      </div>
+      <div class="only-anime"><label>Episodios</label><input type="text" id="i-episodes" placeholder="24" oninput="sync()"></div>
       <div><label>Género</label><input type="text" id="i-genre" placeholder="Alt. Rock" oninput="sync()"></div>
+      <div class="only-anime">
+        <label>Demografía</label>
+        <select id="i-demo" onchange="sync()">
+          <option value="">—</option>
+          <option value="Shōnen">Shōnen</option>
+          <option value="Shōjo">Shōjo</option>
+          <option value="Seinen">Seinen</option>
+          <option value="Josei">Josei</option>
+          <option value="Kodomo">Kodomo</option>
+        </select>
+      </div>
+      <div class="only-anime">
+        <label>Fuente</label>
+        <select id="i-source" onchange="sync()">
+          <option value="">—</option>
+          <option value="Manga">Manga</option>
+          <option value="Light Novel">Light Novel</option>
+          <option value="Novela">Novela</option>
+          <option value="Novela visual">Novela visual</option>
+          <option value="Webtoon">Webtoon</option>
+          <option value="Videojuego">Videojuego</option>
+          <option value="Original">Original</option>
+        </select>
+      </div>
+      <div class="only-anime">
+        <label>Estado</label>
+        <select id="i-status" onchange="sync()">
+          <option value="">— sin etiqueta —</option>
+          <option value="Completado">Completado</option>
+          <option value="Viendo">Viendo</option>
+          <option value="En emisión">En emisión</option>
+          <option value="En pausa">En pausa</option>
+          <option value="Abandonado">Abandonado</option>
+          <option value="Pendiente">Pendiente</option>
+        </select>
+      </div>
     </div>
 
     <div class="section-label">Calificación</div>
@@ -294,13 +412,29 @@ input:focus { border-color: var(--accent); }
       <span>/ 10</span>
     </div>
 
-    <div class="section-label">Canciones favoritas</div>
-    <div class="tracks-list" id="tracks-list"></div>
-    <button class="btn-add" id="btn-add-track" onclick="addTrack()">+ Agregar canción</button>
+    <div class="only-anime">
+      <div class="section-label">Sub-notas (opcional)</div>
+      <div id="subscores"></div>
+      <div class="hint-line">Déjalas vacías si no las quieres en la historia.</div>
+    </div>
+
+    <div class="section-label"><span id="lbl-favs">Canciones favoritas</span></div>
+    <div class="only-anime">
+      <label>Tipo de lista</label>
+      <select id="i-listtype" onchange="onListTypeChange()">
+        <option value="Personajes favoritos">Personajes favoritos</option>
+        <option value="Episodios favoritos">Episodios favoritos</option>
+        <option value="Openings / Endings">Openings / Endings</option>
+        <option value="Arcos favoritos">Arcos favoritos</option>
+        <option value="Momentos favoritos">Momentos favoritos</option>
+      </select>
+    </div>
+    <div class="tracks-list" id="fav-list"></div>
+    <button class="btn-add" id="btn-add-fav" onclick="addFav()">+ Agregar</button>
 
     <div class="section-label">Link</div>
     <div>
-      <label>Spotify, Apple Music…</label>
+      <label id="lbl-link">Spotify, Apple Music…</label>
       <input type="text" id="i-link" placeholder="open.spotify.com/album/..." oninput="sync()">
     </div>
 
@@ -314,30 +448,29 @@ input:focus { border-color: var(--accent); }
         <div id="t-bg"></div>
         <div id="t-cover">
           <img id="t-cover-img" src="" alt="">
-          <div id="t-cover-placeholder"><span>PORTADA</span></div>
+          <div id="t-cover-placeholder"><span id="t-cover-label">PORTADA</span></div>
           <div class="t-grad-bottom"></div>
           <div class="t-grad-top"></div>
         </div>
+        <div id="t-status"></div>
         <div id="t-content">
           <div class="t-top-block">
-            <div class="t-eyebrow">Mis favoritas</div>
-            <div class="t-artist" id="t-artist">Artista</div>
-            <div class="t-album"  id="t-album">Álbum</div>
-            <div class="t-meta-row">
-              <span id="t-year">—</span>
-              <div class="t-meta-dot"></div>
-              <span id="t-genre-tag">Género</span>
-            </div>
+            <div class="t-eyebrow" id="t-eyebrow">Mis favoritas</div>
+            <div class="t-primary" id="t-primary">Artista</div>
+            <div class="t-title"   id="t-title">Álbum</div>
+            <div class="t-original" id="t-original"></div>
+            <div class="t-meta-row" id="t-meta-row"></div>
           </div>
           <div class="t-divider"></div>
+          <div id="t-substrip"></div>
           <div class="t-bottom">
             <div class="t-score-block">
               <div class="t-score" id="t-score">—</div>
               <div class="t-score-sub">PUNTUACIÓN</div>
             </div>
-            <div class="t-tracks-block">
-              <div class="t-tracks-header">Top tracks</div>
-              <div id="t-tracks-list"></div>
+            <div class="t-list-block">
+              <div class="t-list-header" id="t-list-header">Top tracks</div>
+              <div id="t-fav-list"></div>
               <div class="t-link" id="t-link"></div>
             </div>
           </div>
@@ -349,33 +482,197 @@ input:focus { border-color: var(--accent); }
 </div>
 
 <script>
+let currentApp   = 'album';
 let currentColor = 'gold';
 let currentMode  = 'dark';
-let trackCount   = 0;
+let favCount     = 0;
+
+const SUBSCORES = [
+  { key: 'historia',   label: 'Historia'   },
+  { key: 'animacion',  label: 'Animación'  },
+  { key: 'personajes', label: 'Personajes' },
+  { key: 'ost',        label: 'OST'        },
+  { key: 'disfrute',   label: 'Disfrute'   },
+];
+
+const LIST_PLACEHOLDERS = {
+  'Personajes favoritos': 'Personaje',
+  'Episodios favoritos' : 'Episodio',
+  'Openings / Endings'  : 'OP / ED',
+  'Arcos favoritos'     : 'Arco',
+  'Momentos favoritos'  : 'Momento',
+};
+
+// Todo lo que cambia de etiqueta o marcador entre los dos modos
+const APPS = {
+  album: {
+    sub: 'Generador de historias de álbumes',
+    docTitle: 'Album Story Maker',
+    coverLabel: 'Portada',
+    coverHint: 'Arrastra o haz clic<br>para subir portada',
+    coverPlaceholder: 'PORTADA',
+    primaryLabel: 'Artista / Banda',  primaryPh: 'ej. Radiohead',   primaryFallback: 'Artista',
+    titleLabel: 'Nombre del álbum',   titlePh: 'ej. OK Computer',   titleFallback: 'Álbum',
+    yearPh: '1997', genrePh: 'Alt. Rock', scorePh: '8.4',
+    favsLabel: 'Canciones favoritas', favPlaceholder: 'Canción',
+    listHeader: 'Top tracks', eyebrow: 'Mis favoritas',
+    linkLabel: 'Spotify, Apple Music…', linkPh: 'open.spotify.com/album/...',
+  },
+  anime: {
+    sub: 'Calificador y generador de historias de animes',
+    docTitle: 'Anime Story Maker',
+    coverLabel: 'Póster / Key visual',
+    coverHint: 'Arrastra o haz clic<br>para subir el póster',
+    coverPlaceholder: 'PÓSTER',
+    primaryLabel: 'Estudio',          primaryPh: 'ej. MAPPA, Ufotable, Bones…', primaryFallback: 'Estudio',
+    titleLabel: 'Nombre del anime',   titlePh: 'ej. Vinland Saga',  titleFallback: 'Anime',
+    yearPh: '2019', genrePh: 'ej. Drama histórico', scorePh: '9.2',
+    favsLabel: 'Favoritos', favPlaceholder: 'Personaje',
+    listHeader: null, eyebrow: 'Mi calificación',
+    linkLabel: 'Crunchyroll, Netflix, MyAnimeList…', linkPh: 'myanimelist.net/anime/...',
+  },
+};
+
+// Campos de formulario cuyo valor se guarda por modo
+const FIELD_IDS = [
+  'i-primary','i-title','i-original','i-director','i-year','i-season','i-format',
+  'i-episodes','i-genre','i-demo','i-source','i-status','i-custom','i-listtype','i-link',
+].concat(SUBSCORES.map(s => 'i-sub-' + s.key));
+
+// Valores de arranque de cada modo (lo demás arranca vacío)
+const DEFAULT_FIELDS = {
+  album: {},
+  anime: { 'i-format': 'TV', 'i-listtype': 'Personajes favoritos' },
+};
+
+// Estado guardado de cada modo, para que al alternar no se mezclen los datos
+const savedStates = {};
+const covers = { album: '', anime: '' };
+
+const el  = id => document.getElementById(id);
+const val = id => el(id).value.trim();
 
 // ── Rating ──
-const ratingRow = document.getElementById('rating-row');
+const ratingRow = el('rating-row');
 for (let i = 1; i <= 10; i++) {
   const b = document.createElement('button');
   b.className = 'r-btn'; b.textContent = i;
   b.onclick = () => {
     document.querySelectorAll('.r-btn').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    document.getElementById('i-custom').value = '';
-    document.getElementById('t-score').textContent = i;
+    el('i-custom').value = '';
+    el('t-score').textContent = i;
   };
   ratingRow.appendChild(b);
 }
 function customRating(v) {
   document.querySelectorAll('.r-btn').forEach(x => x.classList.remove('active'));
-  document.getElementById('t-score').textContent = v.trim() || '—';
+  el('t-score').textContent = v.trim() || '—';
+}
+function setScoreFromInputs() {
+  const custom = val('i-custom');
+  if (custom) { el('t-score').textContent = custom; return; }
+  const active = document.querySelector('.r-btn.active');
+  el('t-score').textContent = active ? active.textContent : '—';
 }
 
-// ── Tracks ──
-function addTrack(value = '') {
-  trackCount++;
-  const n = trackCount;
-  const list = document.getElementById('tracks-list');
+// ── Sub-notas (solo anime) ──
+const subsWrap = el('subscores');
+SUBSCORES.forEach(s => {
+  const row = document.createElement('div');
+  row.className = 'sub-row';
+
+  const lbl = document.createElement('span');
+  lbl.textContent = s.label;
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.id = 'i-sub-' + s.key;
+  inp.placeholder = '—';
+  inp.oninput = syncSubscores;
+
+  row.appendChild(lbl);
+  row.appendChild(inp);
+  subsWrap.appendChild(row);
+});
+
+function syncSubscores() {
+  const strip = el('t-substrip');
+  strip.innerHTML = '';
+
+  // En modo álbum la tira de sub-notas nunca se muestra
+  const filled = currentApp !== 'anime' ? [] : SUBSCORES
+    .map(s => ({ label: s.label, raw: el('i-sub-' + s.key).value.trim() }))
+    .filter(s => s.raw !== '')
+    .map(s => {
+      const num = parseFloat(s.raw.replace(',', '.'));
+      return { label: s.label, raw: s.raw, pct: isNaN(num) ? 0 : Math.max(0, Math.min(10, num)) * 10 };
+    });
+
+  if (!filled.length) {
+    strip.style.display = 'none';
+    layoutScore();
+    return;
+  }
+
+  strip.style.display = 'flex';
+  filled.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 't-sub-item';
+
+    const lbl = document.createElement('div');
+    lbl.className = 't-sub-label';
+    lbl.textContent = s.label;
+
+    const v = document.createElement('div');
+    v.className = 't-sub-val';
+    v.textContent = s.raw;
+
+    const bar = document.createElement('div');
+    bar.className = 't-sub-bar';
+    const fill = document.createElement('i');
+    fill.style.width = s.pct + '%';
+    bar.appendChild(fill);
+
+    item.appendChild(lbl);
+    item.appendChild(v);
+    item.appendChild(bar);
+    strip.appendChild(item);
+  });
+
+  layoutScore();
+}
+
+// El número grande se achica cuando hay sub-notas, para que todo quepa en 1920px
+function layoutScore() {
+  const hasStrip = el('t-substrip').style.display === 'flex';
+  el('t-score').style.fontSize = hasStrip ? '228px' : '300px';
+  document.querySelector('.t-score-block').style.width = hasStrip ? '230px' : '260px';
+  // Con sub-notas el póster cede alto para que la lista de favoritos respire
+  el('story-template').style.setProperty('--t-cover-h', hasStrip ? '51%' : '56%');
+}
+
+// ── Lista de favoritos ──
+function favPlaceholder() {
+  if (currentApp === 'album') return APPS.album.favPlaceholder;
+  return LIST_PLACEHOLDERS[el('i-listtype').value] || 'Favorito';
+}
+
+function listHeaderText() {
+  return currentApp === 'album' ? APPS.album.listHeader : el('i-listtype').value;
+}
+
+function onListTypeChange() {
+  const header = el('t-list-header');
+  header.textContent = listHeaderText();
+  fitLine(header, [24, 22, 20, 18]);
+  renumberFavs();
+}
+
+function addFav(value = '', focus = true) {
+  favCount++;
+  const n = favCount;
+  const ph = favPlaceholder();
 
   const row = document.createElement('div');
   row.className = 'track-row';
@@ -387,56 +684,58 @@ function addTrack(value = '') {
 
   const inp = document.createElement('input');
   inp.type = 'text';
-  inp.placeholder = `Canción ${n}`;
+  inp.placeholder = `${ph} ${n}`;
   inp.value = value;
-  inp.oninput = syncTracks;
+  inp.oninput = syncFavs;
 
   const del = document.createElement('button');
   del.className = 'btn-icon';
   del.innerHTML = '×';
   del.title = 'Eliminar';
-  del.onclick = () => { row.remove(); renumberTracks(); syncTracks(); };
+  del.onclick = () => { row.remove(); renumberFavs(); syncFavs(); };
 
   row.appendChild(badge);
   row.appendChild(inp);
   row.appendChild(del);
-  list.appendChild(row);
+  el('fav-list').appendChild(row);
 
-  inp.focus();
+  if (focus) inp.focus();
 }
 
-function renumberTracks() {
-  const rows = document.querySelectorAll('#tracks-list .track-row');
+function renumberFavs() {
+  const rows = document.querySelectorAll('#fav-list .track-row');
+  const ph = favPlaceholder();
   rows.forEach((row, i) => {
     row.querySelector('.track-num-badge').textContent = String(i + 1).padStart(2, '0');
+    row.querySelector('input').placeholder = `${ph} ${i + 1}`;
   });
-  trackCount = rows.length;
+  favCount = rows.length;
 }
 
-function syncTracks() {
-  const rows = document.querySelectorAll('#tracks-list .track-row');
+function syncFavs() {
+  const rows = document.querySelectorAll('#fav-list .track-row');
   const names = Array.from(rows).map(r => r.querySelector('input').value.trim());
   const filled = names.filter(n => n).length;
 
-  // Font scales down only when there are many tracks
+  // La tipografía se achica solo cuando hay muchos elementos
   const nameFontSize = filled <= 3 ? 42 : filled <= 5 ? 36 : filled <= 7 ? 30 : 24;
   const numFontSize  = filled <= 3 ? 48 : filled <= 5 ? 40 : filled <= 7 ? 34 : 26;
 
-  const container = document.getElementById('t-tracks-list');
+  const container = el('t-fav-list');
   container.innerHTML = '';
 
   names.forEach((name, i) => {
     if (!name) return;
     const item = document.createElement('div');
-    item.className = 't-track-item';
+    item.className = 't-fav-item';
 
     const num = document.createElement('div');
-    num.className = 't-track-num';
+    num.className = 't-fav-num';
     num.style.fontSize = numFontSize + 'px';
     num.textContent = String(i + 1).padStart(2, '0');
 
     const title = document.createElement('div');
-    title.className = 't-track-name';
+    title.className = 't-fav-name';
     title.style.fontSize = nameFontSize + 'px';
     title.textContent = name;
 
@@ -446,52 +745,222 @@ function syncTracks() {
   });
 }
 
-// ── Cover ──
+// ── Portada / Póster ──
 function loadCoverURL(url) {
-  const edImg = document.getElementById('editor-cover-img');
-  edImg.src = url; edImg.style.display = 'block';
-  document.getElementById('upload-hint').style.opacity = '0';
-  const tImg = document.getElementById('t-cover-img');
-  tImg.src = url; tImg.style.display = 'block';
-  document.getElementById('t-cover-placeholder').style.display = 'none';
+  covers[currentApp] = url;
+  applyCover(url);
 }
+
+function applyCover(url) {
+  const edImg = el('editor-cover-img');
+  const tImg  = el('t-cover-img');
+  if (url) {
+    edImg.src = url; edImg.style.display = 'block';
+    el('upload-hint').style.opacity = '0';
+    tImg.src = url; tImg.style.display = 'block';
+    el('t-cover-placeholder').style.display = 'none';
+  } else {
+    edImg.removeAttribute('src'); edImg.style.display = 'none';
+    el('upload-hint').style.opacity = '1';
+    tImg.removeAttribute('src'); tImg.style.display = 'none';
+    el('t-cover-placeholder').style.display = 'flex';
+  }
+}
+
 function handleFile(inp) { const f = inp.files[0]; if (f) loadCoverURL(URL.createObjectURL(f)); }
-function onDragOver(e)   { e.preventDefault(); document.getElementById('cover-drop').classList.add('dragover'); }
-function onDragLeave()   { document.getElementById('cover-drop').classList.remove('dragover'); }
+function onDragOver(e)   { e.preventDefault(); el('cover-drop').classList.add('dragover'); }
+function onDragLeave()   { el('cover-drop').classList.remove('dragover'); }
 function onDrop(e)       {
-  e.preventDefault(); document.getElementById('cover-drop').classList.remove('dragover');
+  e.preventDefault(); el('cover-drop').classList.remove('dragover');
   const f = e.dataTransfer.files[0];
   if (f && f.type.startsWith('image/')) loadCoverURL(URL.createObjectURL(f));
 }
 
+// ── Auto-ajuste tipográfico ──
+// Baja el tamaño de fuente por pasos hasta que la línea deja de desbordarse.
+function fitLine(target, sizes) {
+  for (let i = 0; i < sizes.length; i++) {
+    target.style.fontSize = sizes[i] + 'px';
+    if (target.scrollWidth <= target.clientWidth + 1) return;
+  }
+}
+
+function fitMetaRow() {
+  const row = el('t-meta-row');
+  const sizes = [29, 26, 23, 20, 18];
+  for (let i = 0; i < sizes.length; i++) {
+    const s = sizes[i];
+    row.style.fontSize = s + 'px';
+    row.querySelectorAll('.t-genre-tag').forEach(e => { e.style.fontSize = (s - 2) + 'px'; });
+    if (row.scrollWidth <= row.clientWidth + 1) return;
+  }
+}
+
 // ── Sync general ──
 function sync() {
-  const artist = document.getElementById('i-artist').value.trim();
-  const album  = document.getElementById('i-album').value.trim();
-  const year   = document.getElementById('i-year').value.trim();
-  const genre  = document.getElementById('i-genre').value.trim();
-  const link   = document.getElementById('i-link').value.trim();
+  const isAnime = currentApp === 'anime';
+  const cfg = APPS[currentApp];
 
-  document.getElementById('t-artist').textContent = artist || 'Artista';
-  document.getElementById('t-album').textContent  = album  || 'Álbum';
-  document.getElementById('t-year').textContent   = year   || '—';
-  document.getElementById('t-genre-tag').textContent = genre || 'Género';
+  const primary  = val('i-primary');
+  const title    = val('i-title');
+  const year     = val('i-year');
+  const genre    = val('i-genre');
+  const link     = val('i-link');
 
-  const len = (album || 'Álbum').length;
-  document.getElementById('t-album').style.fontSize = len <= 10 ? '152px' : len <= 16 ? '118px' : len <= 22 ? '88px' : '68px';
+  // Eyebrow: en anime muestra demografía · fuente si las hay
+  let eyebrow = cfg.eyebrow;
+  if (isAnime) {
+    const parts = [val('i-demo'), val('i-source')].filter(Boolean);
+    if (parts.length) eyebrow = parts.join(' · ');
+  }
+  el('t-eyebrow').textContent = eyebrow;
 
-  const tLink = document.getElementById('t-link');
+  // Artista (álbum) / Estudio + director (anime)
+  const primaryEl = el('t-primary');
+  let primaryTxt = primary || cfg.primaryFallback;
+  if (isAnime) {
+    const director = val('i-director');
+    if (director) primaryTxt += ' · Dir. ' + director;
+  }
+  primaryEl.textContent = primaryTxt;
+  fitLine(primaryEl, [42, 36, 31, 27, 24, 21]);
+
+  // Título
+  const titleEl = el('t-title');
+  const titleTxt = title || cfg.titleFallback;
+  titleEl.textContent = titleTxt;
+  const len = titleTxt.length;
+  titleEl.style.fontSize = len <= 10 ? '152px' : len <= 16 ? '118px' : len <= 22 ? '88px' : len <= 30 ? '68px' : '56px';
+
+  // Título original (solo anime)
+  const origEl = el('t-original');
+  const original = isAnime ? val('i-original') : '';
+  origEl.textContent = original;
+  origEl.style.display = original ? 'block' : 'none';
+  if (original) fitLine(origEl, [28, 25, 22, 20]);
+
+  // Meta row
+  const metaRow = el('t-meta-row');
+  metaRow.innerHTML = '';
+  const parts = [];
+  if (isAnime) {
+    const seasonYear = [val('i-season'), year].filter(Boolean).join(' ');
+    const episodes   = val('i-episodes');
+    const formatEps  = [val('i-format'), episodes ? episodes + ' EPS' : ''].filter(Boolean).join(' · ');
+    if (seasonYear) parts.push({ type: 'text', value: seasonYear });
+    if (formatEps)  parts.push({ type: 'text', value: formatEps  });
+  } else {
+    if (year) parts.push({ type: 'text', value: year });
+  }
+  if (genre) parts.push({ type: 'tag', value: genre });
+  if (!parts.length) parts.push({ type: 'text', value: '—' });
+
+  parts.forEach((p, i) => {
+    if (i > 0) {
+      const dot = document.createElement('div');
+      dot.className = 't-meta-dot';
+      metaRow.appendChild(dot);
+    }
+    const node = document.createElement('span');
+    if (p.type === 'tag') node.className = 't-genre-tag';
+    node.textContent = p.value;
+    metaRow.appendChild(node);
+  });
+  fitMetaRow();
+
+  // Estado (solo anime)
+  const statusEl = el('t-status');
+  const status = isAnime ? val('i-status') : '';
+  statusEl.textContent = status;
+  statusEl.style.display = status ? 'block' : 'none';
+
+  // Link
+  const tLink = el('t-link');
   tLink.textContent = link;
   tLink.style.display = link ? 'block' : 'none';
+}
+
+function syncAll() {
+  sync();
+  syncSubscores();
+  syncFavs();
+  setScoreFromInputs();
+  onListTypeChange();
+}
+
+// ── Cambio de modo Álbum | Anime ──
+function captureState() {
+  return {
+    fields: FIELD_IDS.reduce((acc, id) => { acc[id] = el(id).value; return acc; }, {}),
+    favs: Array.from(document.querySelectorAll('#fav-list .track-row input')).map(i => i.value),
+    rating: (() => {
+      const btns = Array.from(document.querySelectorAll('.r-btn'));
+      return btns.findIndex(b => b.classList.contains('active'));
+    })(),
+  };
+}
+
+function restoreState(state) {
+  const defaults = DEFAULT_FIELDS[currentApp];
+  FIELD_IDS.forEach(id => {
+    const node = el(id);
+    node.value = state ? (state.fields[id] ?? '') : (defaults[id] ?? '');
+  });
+
+  document.querySelectorAll('.r-btn').forEach(b => b.classList.remove('active'));
+  const idx = state ? state.rating : -1;
+  if (idx >= 0) document.querySelectorAll('.r-btn')[idx].classList.add('active');
+
+  el('fav-list').innerHTML = '';
+  favCount = 0;
+  const favs = (state && state.favs && state.favs.length) ? state.favs : ['', '', ''];
+  favs.forEach(v => addFav(v, false));
+
+  applyCover(covers[currentApp]);
+}
+
+function applyLabels() {
+  const cfg = APPS[currentApp];
+  document.title            = cfg.docTitle;
+  el('app-sub').textContent = cfg.sub;
+
+  el('lbl-cover').textContent      = cfg.coverLabel;
+  el('upload-text').innerHTML      = cfg.coverHint;
+  el('t-cover-label').textContent  = cfg.coverPlaceholder;
+
+  el('lbl-primary').textContent = cfg.primaryLabel;
+  el('i-primary').placeholder   = cfg.primaryPh;
+  el('lbl-title').textContent   = cfg.titleLabel;
+  el('i-title').placeholder     = cfg.titlePh;
+  el('i-year').placeholder      = cfg.yearPh;
+  el('i-genre').placeholder     = cfg.genrePh;
+  el('i-custom').placeholder    = cfg.scorePh;
+  el('lbl-favs').textContent    = cfg.favsLabel;
+  el('lbl-link').textContent    = cfg.linkLabel;
+  el('i-link').placeholder      = cfg.linkPh;
+}
+
+function setApp(app) {
+  if (app === currentApp) return;
+
+  savedStates[currentApp] = captureState();
+  currentApp = app;
+
+  document.querySelectorAll('.switch-btn').forEach(b => b.classList.toggle('active', b.dataset.app === app));
+  el('editor').dataset.app = app;
+  el('editor').scrollTop = 0;
+
+  applyLabels();
+  restoreState(savedStates[app]);
+  syncAll();
 }
 
 // ── Theme ──
 let usingCustom = false;
 
 function applyTheme() {
-  const t = document.getElementById('story-template');
+  const t = el('story-template');
   if (!usingCustom) {
-    // Clear any inline custom vars so CSS rules take over
     clearCustomVars(t);
     t.dataset.color = currentColor;
     t.dataset.mode  = currentMode;
@@ -501,8 +970,8 @@ function applyTheme() {
 function setColor(btn) {
   usingCustom = false;
   document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('picker-btn').classList.remove('active');
-  document.getElementById('hex-wrap').classList.remove('visible');
+  el('picker-btn').classList.remove('active');
+  el('hex-wrap').classList.remove('visible');
   btn.classList.add('active');
   currentColor = btn.dataset.color;
   applyTheme();
@@ -513,8 +982,7 @@ function setMode(btn) {
   btn.classList.add('active');
   currentMode = btn.dataset.mode;
   if (usingCustom) {
-    const hex = document.getElementById('hex-input').value ||
-                document.getElementById('color-input').value.replace('#','');
+    const hex = el('hex-input').value || el('color-input').value.replace('#','');
     if (hex.length === 6) applyCustomColor('#' + hex);
   } else {
     applyTheme();
@@ -523,84 +991,78 @@ function setMode(btn) {
 
 // ── Custom color ──
 function openPicker(e) {
-  // Try EyeDropper API first (Chrome 95+)
   if (window.EyeDropper) {
     e.preventDefault();
     const dropper = new EyeDropper();
     dropper.open().then(result => {
       activateCustom(result.sRGBHex);
     }).catch(() => {
-      // User cancelled — fall through to color input
-      document.getElementById('color-input').click();
+      el('color-input').click();
     });
   }
-  // else: native color input opens via its own click (input is inside button)
 }
 
-function onColorInput(hex) {
-  activateCustom(hex);
-}
+function onColorInput(hex) { activateCustom(hex); }
 
-function onHexType(val) {
-  const clean = val.replace(/[^0-9a-fA-F]/g, '');
-  document.getElementById('hex-input').value = clean;
+function onHexType(v) {
+  const clean = v.replace(/[^0-9a-fA-F]/g, '');
+  el('hex-input').value = clean;
   if (clean.length === 6) {
     activateCustom('#' + clean);
-    document.getElementById('color-input').value = '#' + clean;
+    el('color-input').value = '#' + clean;
   }
 }
 
 function activateCustom(hex) {
   usingCustom = true;
   document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('picker-btn').classList.add('active');
-  document.getElementById('hex-wrap').classList.add('visible');
-  // Update the hex text input
-  document.getElementById('hex-input').value = hex.replace('#','').toUpperCase();
-  document.getElementById('color-input').value = hex;
+  el('picker-btn').classList.add('active');
+  el('hex-wrap').classList.add('visible');
+  el('hex-input').value = hex.replace('#','').toUpperCase();
+  el('color-input').value = hex;
   applyCustomColor(hex);
 }
 
 function applyCustomColor(hex) {
-  const t = document.getElementById('story-template');
+  const t = el('story-template');
   t.dataset.color = 'custom';
   t.dataset.mode  = currentMode;
 
   const [r, g, b] = hexToRgb(hex);
   const isDark = currentMode === 'dark';
 
-  // Dark mode: bg = casi negro con tinte sutil del acento (92% negro)
-  // Light mode: bg = casi blanco con tinte sutil (93% blanco)
-  const bg     = isDark
-    ? mixRgb(r, g, b,   0,   0,   0, 0.92)   // 8% accent + 92% black
-    : mixRgb(r, g, b, 255, 255, 255, 0.93);   // 7% accent + 93% white
+  // Oscuro: fondo casi negro con un tinte del acento. Claro: casi blanco.
+  const bg = isDark
+    ? mixRgb(r, g, b,   0,   0,   0, 0.92)
+    : mixRgb(r, g, b, 255, 255, 255, 0.93);
 
-  const text   = isDark ? '#f2eeea' : '#141010';
+  const text = isDark ? '#f2eeea' : '#141010';
 
-  // Muted: tono oscuro/claro neutro con apenas un toque del color
-  const muted  = isDark
-    ? mixRgb(r, g, b,  40,  40,  40, 0.72)   // 28% accent + 72% dark gray
+  const muted = isDark
+    ? mixRgb(r, g, b, 40, 40, 40, 0.72)
     : '#aaaaaa';
 
-  // En light mode el acento se oscurece para contrastar con fondo claro
+  // En modo claro el acento se oscurece para contrastar con el fondo
   const finalAccent = isDark ? hex : darken(r, g, b, 0.65);
 
-  const tagBg = `rgba(${r},${g},${b},${isDark ? .13 : .10})`;
-  const tagBd = `rgba(${r},${g},${b},${isDark ? .30 : .25})`;
-  const sep   = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.09)';
+  const tagBg   = `rgba(${r},${g},${b},${isDark ? .13 : .10})`;
+  const tagBd   = `rgba(${r},${g},${b},${isDark ? .30 : .25})`;
+  const sep     = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.09)';
+  const badgeBg = isDark ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.72)';
 
-  t.style.setProperty('--t-bg',     bg);
-  t.style.setProperty('--t-grad',   bg);
-  t.style.setProperty('--t-text',   text);
-  t.style.setProperty('--t-accent', finalAccent);
-  t.style.setProperty('--t-muted',  muted);
-  t.style.setProperty('--t-tag-bg', tagBg);
-  t.style.setProperty('--t-tag-bd', tagBd);
-  t.style.setProperty('--t-sep',    sep);
+  t.style.setProperty('--t-bg',       bg);
+  t.style.setProperty('--t-grad',     bg);
+  t.style.setProperty('--t-text',     text);
+  t.style.setProperty('--t-accent',   finalAccent);
+  t.style.setProperty('--t-muted',    muted);
+  t.style.setProperty('--t-tag-bg',   tagBg);
+  t.style.setProperty('--t-tag-bd',   tagBd);
+  t.style.setProperty('--t-sep',      sep);
+  t.style.setProperty('--t-badge-bg', badgeBg);
 }
 
 function clearCustomVars(t) {
-  ['--t-bg','--t-grad','--t-text','--t-accent','--t-muted','--t-tag-bg','--t-tag-bd','--t-sep']
+  ['--t-bg','--t-grad','--t-text','--t-accent','--t-muted','--t-tag-bg','--t-tag-bd','--t-sep','--t-badge-bg']
     .forEach(v => t.style.removeProperty(v));
 }
 
@@ -614,24 +1076,23 @@ function hexToRgb(hex) {
   ];
 }
 
-// Mix accent RGB with a base color RGB; t = how much of base (0 = pure accent, 1 = pure base)
+// Mezcla el acento con un color base; t = cuánto del base (0 = puro acento, 1 = puro base)
 function mixRgb(r, g, b, br, bg, bb, t) {
   const mix = (a, ba) => Math.round(a * (1 - t) + ba * t);
   return `rgb(${mix(r,br)},${mix(g,bg)},${mix(b,bb)})`;
 }
 
-// Darken by multiplying by factor (0–1)
 function darken(r, g, b, factor) {
   return `rgb(${Math.round(r*factor)},${Math.round(g*factor)},${Math.round(b*factor)})`;
 }
 
 // ── Export ──
 async function exportStory() {
-  const btn = document.getElementById('export-btn');
+  const btn = el('export-btn');
   btn.disabled = true; btn.textContent = 'GENERANDO…';
   await document.fonts.ready;
 
-  const tmpl    = document.getElementById('story-template');
+  const tmpl    = el('story-template');
   const wrapper = document.querySelector('.story-wrapper');
 
   tmpl.style.transform = 'none';
@@ -648,8 +1109,10 @@ async function exportStory() {
       scale: 1, useCORS: true, allowTaint: true,
       backgroundColor: null, logging: false, width: 1080, height: 1920,
     });
+    const base = currentApp === 'album' ? (val('i-primary') || 'album') : (val('i-title') || 'anime');
+    const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || currentApp;
     const a = document.createElement('a');
-    a.download = `story-${document.getElementById('i-artist').value || 'album'}-${Date.now()}.png`;
+    a.download = `story-${currentApp}-${slug}-${Date.now()}.png`;
     a.href = canvas.toDataURL('image/png');
     a.click();
   } catch (err) {
@@ -664,8 +1127,10 @@ async function exportStory() {
   }
 }
 
-// Arrancar con 3 tracks vacíos
-addTrack(); addTrack(); addTrack();
+// ── Arranque ──
+applyLabels();
+addFav('', false); addFav('', false); addFav('', false);
+syncAll();
 </script>
 </body>
 </html>
