@@ -1151,6 +1151,28 @@ function restaurarFondos(tocados) {
   tocados.forEach(([e, valor]) => { e.style.backgroundImage = valor; });
 }
 
+// ── Blindaje de html2canvas ──
+// Cuando un elemento con background-image mide cero en alguna dimensión —o menos de un
+// píxel, como el divisor de 1px cuando la plantilla está escalada— html2canvas construye
+// un canvas de tamaño 0 y Chrome aborta el export con:
+//   InvalidStateError: ... createPattern ... a width or height of 0
+// Durante el export sustituimos ese canvas degenerado por uno de 1x1 transparente: no
+// pinta nada, que es exactamente lo que ese fondo aportaba. Devuelve la función que
+// deshace el parche.
+function blindarCreatePattern() {
+  const proto = CanvasRenderingContext2D.prototype;
+  const original = proto.createPattern;
+  proto.createPattern = function (fuente, repeticion) {
+    if (fuente && (fuente.width === 0 || fuente.height === 0)) {
+      const vacio = document.createElement('canvas');
+      vacio.width = 1; vacio.height = 1;
+      return original.call(this, vacio, repeticion);
+    }
+    return original.call(this, fuente, repeticion);
+  };
+  return () => { proto.createPattern = original; };
+}
+
 // ── Export ──
 async function exportStory() {
   const btn = el('export-btn');
@@ -1175,6 +1197,7 @@ async function exportStory() {
   if (portadaRecortada) await cambiarPortada(portadaRecortada);
 
   const fondosNeutralizados = neutralizarFondosVacios(tmpl);
+  const quitarBlindaje = blindarCreatePattern();
 
   try {
     const canvas = await html2canvas(tmpl, {
@@ -1191,6 +1214,7 @@ async function exportStory() {
     console.error(err);
     alert('Error al exportar. Revisa la consola.');
   } finally {
+    quitarBlindaje();
     restaurarFondos(fondosNeutralizados);
     if (portadaRecortada) await cambiarPortada(portadaOriginal);
     tmpl.style.transform = 'scale(0.2963)';
