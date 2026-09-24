@@ -1086,49 +1086,6 @@ function darken(r, g, b, factor) {
   return `rgb(${Math.round(r*factor)},${Math.round(g*factor)},${Math.round(b*factor)})`;
 }
 
-// ── Recorte de la portada para el export ──
-// html2canvas no implementa object-fit: estira la imagen hasta llenar la caja en vez de
-// recortarla, así que cualquier imagen con otra proporción (un póster 2:3, por ejemplo)
-// sale deformada. Generamos una versión ya recortada con la proporción exacta de la caja,
-// replicando object-fit: cover + object-position: center top.
-// Devuelve un data URL, o null si no hay nada que recortar.
-function recortarPortada() {
-  const img = el('t-cover-img');
-  if (img.style.display === 'none' || !img.naturalWidth || !img.naturalHeight) return null;
-
-  const caja  = el('t-cover').getBoundingClientRect();
-  const cajaW = Math.round(caja.width);
-  const cajaH = Math.round(caja.height);
-  if (!cajaW || !cajaH) return null;
-
-  const natW = img.naturalWidth, natH = img.naturalHeight;
-  const escala = Math.max(cajaW / natW, cajaH / natH);   // cover: la menor escala que cubre
-  const recW = Math.min(natW, cajaW / escala);
-  const recH = Math.min(natH, cajaH / escala);
-  const recX = (natW - recW) / 2;                        // center en horizontal
-  const recY = 0;                                        // top en vertical
-
-  try {
-    const c = document.createElement('canvas');
-    c.width = cajaW; c.height = cajaH;
-    c.getContext('2d').drawImage(img, recX, recY, recW, recH, 0, 0, cajaW, cajaH);
-    return c.toDataURL('image/png');
-  } catch (err) {
-    // Una imagen de otro origen contamina el canvas: seguimos sin recorte previo
-    console.warn('No se pudo recortar la portada; se exporta sin la corrección.', err);
-    return null;
-  }
-}
-
-function cambiarPortada(src) {
-  return new Promise(res => {
-    const img = el('t-cover-img');
-    const fin = () => { img.onload = null; img.onerror = null; res(); };
-    img.onload = fin; img.onerror = fin;
-    img.src = src;
-  });
-}
-
 // ── Export ──
 async function exportStory() {
   const btn = el('export-btn');
@@ -1147,11 +1104,6 @@ async function exportStory() {
 
   await new Promise(r => setTimeout(r, 100));
 
-  // Con transform:none la caja ya mide sus 1080px reales, así que el recorte se calcula aquí
-  const portadaOriginal = el('t-cover-img').src;
-  const portadaRecortada = recortarPortada();
-  if (portadaRecortada) await cambiarPortada(portadaRecortada);
-
   try {
     const canvas = await html2canvas(tmpl, {
       scale: 1, useCORS: true, allowTaint: true,
@@ -1167,7 +1119,6 @@ async function exportStory() {
     console.error(err);
     alert('Error al exportar. Revisa la consola.');
   } finally {
-    if (portadaRecortada) await cambiarPortada(portadaOriginal);
     tmpl.style.transform = 'scale(0.2963)';
     tmpl.style.position  = 'absolute';
     tmpl.style.top = '0'; tmpl.style.left = '0'; tmpl.style.zIndex = '';
