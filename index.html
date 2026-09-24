@@ -1129,6 +1129,28 @@ function cambiarPortada(src) {
   });
 }
 
+// ── Fondos de elementos sin tamaño ──
+// html2canvas revienta al renderizar el background-image de un elemento de ancho o alto
+// cero ("The image argument is a canvas element with a width or height of 0"). El caso
+// típico es #t-cover-placeholder, que queda oculto y a 0×0 en cuanto cargas una portada.
+// Esos fondos no se ven en el resultado, así que los quitamos durante el export.
+function neutralizarFondosVacios(raiz) {
+  const tocados = [];
+  raiz.querySelectorAll('*').forEach(e => {
+    const cs = getComputedStyle(e);
+    if (!cs.backgroundImage || cs.backgroundImage === 'none') return;
+    const r = e.getBoundingClientRect();
+    if (cs.display !== 'none' && r.width > 0 && r.height > 0) return;
+    tocados.push([e, e.style.backgroundImage]);
+    e.style.backgroundImage = 'none';
+  });
+  return tocados;
+}
+
+function restaurarFondos(tocados) {
+  tocados.forEach(([e, valor]) => { e.style.backgroundImage = valor; });
+}
+
 // ── Export ──
 async function exportStory() {
   const btn = el('export-btn');
@@ -1152,6 +1174,8 @@ async function exportStory() {
   const portadaRecortada = recortarPortada();
   if (portadaRecortada) await cambiarPortada(portadaRecortada);
 
+  const fondosNeutralizados = neutralizarFondosVacios(tmpl);
+
   try {
     const canvas = await html2canvas(tmpl, {
       scale: 1, useCORS: true, allowTaint: true,
@@ -1167,6 +1191,7 @@ async function exportStory() {
     console.error(err);
     alert('Error al exportar. Revisa la consola.');
   } finally {
+    restaurarFondos(fondosNeutralizados);
     if (portadaRecortada) await cambiarPortada(portadaOriginal);
     tmpl.style.transform = 'scale(0.2963)';
     tmpl.style.position  = 'absolute';
