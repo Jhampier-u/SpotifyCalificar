@@ -159,7 +159,14 @@ input:focus, select:focus { border-color: var(--accent); }
 .preview-panel { flex: 1; display: flex; align-items: center; justify-content: center; padding: 32px; background: #080808; position: relative; overflow: hidden; }
 .preview-panel::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at center, #1a1a1a 0%, #080808 70%); }
 .preview-badge { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); font-size: 9px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; background: var(--surface); padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); z-index: 2; white-space: nowrap; }
-.story-wrapper { width: 320px; height: 569px; position: relative; z-index: 1; border-radius: 12px; overflow: hidden; box-shadow: 0 32px 100px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.04); }
+.story-wrapper {
+  /* Tamaño decidido por CSS: alto preferido 569px, proporción 1080:1920 fija y topes
+     al hueco disponible. El JS solo lee el ancho resultante para calcular la escala. */
+  height: 569px; width: auto; aspect-ratio: 1080 / 1920;
+  max-width: 100%; max-height: 100%; min-height: 0; flex: 0 1 auto;
+  position: relative; z-index: 1; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 32px 100px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.04);
+}
 
 /* ═══════════════════════════════
    STORY TEMPLATE — 1080 × 1920
@@ -264,6 +271,52 @@ input:focus, select:focus { border-color: var(--accent); }
 .t-fav-name { font-family: 'DM Mono', monospace; font-size: 38px; color: var(--t-text); font-weight: 300; line-height: 1; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .t-link { font-family: 'DM Mono', monospace; font-size: 26px; color: var(--t-muted); letter-spacing: 1px; word-break: break-all; opacity: .5; display: none; flex-shrink: 0; margin-top: 18px; }
+
+/* ═══ RESPONSIVE ═══
+   La plantilla sigue midiendo 1080×1920 siempre: lo que se adapta es la app que la
+   rodea. La escala del preview la calcula ajustarPreview() según el hueco disponible. */
+
+/* Tablet y móvil: una sola columna, la página scrollea y el preview queda fijo arriba */
+@media (max-width: 900px) {
+  body { height: auto; min-height: 100vh; overflow: visible; }
+  .app { flex-direction: column; overflow: visible; }
+
+  .preview-panel {
+    order: -1;                       /* el preview va arriba, siempre a la vista */
+    position: sticky; top: 0; z-index: 5;
+    height: 44vh; min-height: 290px; flex: none;
+    padding: 36px 16px 14px;        /* la banda de arriba es para la etiqueta */
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-badge { top: 9px; font-size: 8px; padding: 4px 10px; }
+
+  .editor {
+    width: 100%; min-width: 0;
+    border-right: none; overflow: visible;
+    padding: 18px 16px 28px;
+  }
+  /* A todo el ancho, un cuadrado 1:1 se volvería enorme */
+  .cover-drop { max-width: 280px; }
+
+  header { flex-wrap: wrap; gap: 10px 14px; padding: 12px 16px; }
+  .app-switch { margin-left: auto; }
+  .header-right { margin-left: 0; width: 100%; flex-wrap: wrap; }
+}
+
+/* Móvil estrecho */
+@media (max-width: 560px) {
+  header { padding: 10px 12px; }
+  .logo { font-size: 20px; letter-spacing: 3px; }
+  .logo-sub { font-size: 8px; letter-spacing: 1px; }
+  .switch-btn { padding: 6px 11px; font-size: 9px; }
+  .theme-pill, .vsep { display: none; }
+  .header-right { gap: 5px; }
+  .preview-panel { height: 44vh; min-height: 270px; padding: 33px 12px 12px; }
+  .editor { padding: 16px 12px 24px; }
+  .field-grid, .two-col { gap: 8px; }
+  .r-btn { padding: 8px 1px; font-size: 10px; }
+  .custom-rating-row input { width: 64px; }
+}
 
 #t-grain { position: absolute; inset: 0; pointer-events: none; opacity: .045; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 300px; }
 </style>
@@ -1151,6 +1204,25 @@ function restaurarFondos(tocados) {
   tocados.forEach(([e, valor]) => { e.style.backgroundImage = valor; });
 }
 
+// ── Escala del preview ──
+// La plantilla mide siempre 1080×1920 y se muestra reducida dentro de .story-wrapper.
+// Del tamaño del marco se encarga el CSS; aquí solo derivamos la escala de su ancho real.
+// Un transform no cambia el tamaño del marco, así que el observer no puede realimentarse
+// ni perder notificaciones por bucle.
+let escalaPreview = 320 / 1080;
+
+function ajustarPreview() {
+  const wrap = document.querySelector('.story-wrapper');
+  const plantilla = el('story-template');
+  if (!wrap || !plantilla) return;
+
+  const ancho = wrap.clientWidth;
+  if (!ancho) return;
+
+  escalaPreview = ancho / 1080;
+  plantilla.style.transform = 'scale(' + escalaPreview + ')';
+}
+
 // ── Blindaje de html2canvas ──
 // Cuando un elemento con background-image mide cero en alguna dimensión —o menos de un
 // píxel, como el divisor de 1px cuando la plantilla está escalada— html2canvas construye
@@ -1217,7 +1289,7 @@ async function exportStory() {
     quitarBlindaje();
     restaurarFondos(fondosNeutralizados);
     if (portadaRecortada) await cambiarPortada(portadaOriginal);
-    tmpl.style.transform = 'scale(0.2963)';
+    tmpl.style.transform = 'scale(' + escalaPreview + ')';
     tmpl.style.position  = 'absolute';
     tmpl.style.top = '0'; tmpl.style.left = '0'; tmpl.style.zIndex = '';
     wrapper.appendChild(tmpl);
@@ -1229,6 +1301,9 @@ async function exportStory() {
 applyLabels();
 addFav('', false); addFav('', false); addFav('', false);
 syncAll();
+ajustarPreview();
+window.addEventListener('resize', ajustarPreview);
+if (window.ResizeObserver) new ResizeObserver(ajustarPreview).observe(document.querySelector('.story-wrapper'));
 </script>
 </body>
 </html>
